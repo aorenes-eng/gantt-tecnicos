@@ -106,7 +106,7 @@
 </div>
 
 <script>
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSLM-eLHkLQdtAKcfXmYXndYfJyE98XRw1UG4Z9vKGUMlbmwJ3ld7fbuS0yZSZFy52nEIlZ5Cp4XU_2/pub?gid=0&single=true&output=csv";
+const PUBLISHED_ID = "2PACX-1vSLM-eLHkLQdtAKcfXmYXndYfJyE98XRw1UG4Z9vKGUMlbmwJ3ld7fbuS0yZSZFy52nEIlZ5Cp4XU_2";
 
 // URL pública CSV — funciona porque la hoja está publicada en web
 
@@ -163,10 +163,40 @@ async function loadData(){
   dot.className='dot loading';txt.textContent='Actualizando...';rfb.disabled=true;eb.style.display='none';
 
   try{
-    // Añadimos timestamp para evitar caché
-    const res=await fetch(CSV_URL+'&t='+Date.now(),{cache:'no-store'});
-    if(!res.ok) throw new Error(`Error HTTP ${res.status}`);
-    const text=await res.text();
+    const text = await new Promise((resolve, reject) => {
+      const cbName = 'cb_' + Date.now();
+      const url = `https://docs.google.com/spreadsheets/d/e/${PUBLISHED_ID}/pub?gid=0&single=true&output=csv`;
+      // Use fetch with no-cors as last resort — read via iframe trick
+      // Actually use the working gviz endpoint with published ID
+      const gvizUrl = `https://docs.google.com/spreadsheets/d/e/${PUBLISHED_ID}/gviz/tq?tqx=out:csv&sheet=Datos`;
+      const script = document.createElement('script');
+      // Fall back to direct iframe-based CSV reading via gviz json
+      const jsonUrl = `https://docs.google.com/spreadsheets/d/e/${PUBLISHED_ID}/gviz/tq?tqx=out:json&tq=select%20*&sheet=Datos&callback=${cbName}`;
+      window[cbName] = function(data) {
+        script.remove();
+        delete window[cbName];
+        try {
+          const rows = data.table.rows;
+          const cols = data.table.cols;
+          // Build CSV-like text from gviz response
+          const header = cols.map(c => '"'+c.label+'"').join(',');
+          const lines = [header];
+          rows.forEach(row => {
+            if(!row.c) return;
+            const vals = row.c.map(cell => {
+              if(!cell||cell.v===null||cell.v===undefined) return '""';
+              return '"'+String(cell.v)+'"';
+            });
+            lines.push(vals.join(','));
+          });
+          resolve(lines.join('\n'));
+        } catch(e) { reject(e); }
+      };
+      script.onerror = () => { script.remove(); delete window[cbName]; reject(new Error('No se pudo cargar la hoja')); };
+      script.src = jsonUrl;
+      document.head.appendChild(script);
+      setTimeout(() => { if(window[cbName]){ script.remove(); delete window[cbName]; reject(new Error('Timeout')); } }, 10000);
+    });
     if(text.includes('<!DOCTYPE')||text.includes('<html')) throw new Error('La hoja no está publicada correctamente.\nVe a Archivo → Compartir → Publicar en la web → Hoja "Datos" → CSV → Publicar');
 
     colorMap={};colorIdx=0;entries=[];

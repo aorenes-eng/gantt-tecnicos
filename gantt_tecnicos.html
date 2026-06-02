@@ -232,14 +232,28 @@ function getOverlaps(){
 function getTecLibreThisWeek(){
   const today=new Date();today.setHours(0,0,0,0);
   const ws=getMonday(today),we=addDays(ws,6);
-  // Vacaciones o baja esta semana
-  return [...new Set(entries.map(e=>e.tecnico))].filter(tec=>
-    entries.some(e=>
+  const tecNames=[...new Set(entries.map(e=>e.tecnico))];
+  return tecNames.filter(tec=>{
+    // Si el técnico tiene vacaciones o baja que cubren algún día esta semana, lo ignoramos
+    const ausente=entries.some(e=>
       e.tecnico===tec&&
       (e.tipo==='vacaciones'||e.tipo==='baja')&&
       e.start<=we&&e.end>=ws
-    )
-  );
+    );
+    if(ausente) return false;
+    // Días laborables de esta semana
+    const laborables=[];
+    for(let d=new Date(ws);d<=we;d=addDays(d,1)){
+      const wd=d.getDay();
+      if(wd!==0&&wd!==6) laborables.push(new Date(d));
+    }
+    // Entradas de trabajo de este técnico
+    const trabajo=entries.filter(e=>e.tecnico===tec&&(e.tipo||'trabajo')==='trabajo');
+    // Si tiene al menos un día laborable sin cobertura → libre
+    return laborables.some(dia=>
+      !trabajo.some(e=>e.start<=dia&&e.end>=dia)
+    );
+  });
 }
 
 function exportPDF(){
@@ -327,6 +341,7 @@ function render(){
     const equipos=[...new Set(entries.map(e=>e.equipo||'Sin equipo'))].sort();
     equipos.forEach(eq=>{
       const tecs=[...new Set(entries.filter(e=>(e.equipo||'Sin equipo')===eq).map(e=>e.tecnico))];
+      if(!tecs.length) return;
       orderedTecs.push({type:'group',label:eq});
       tecs.forEach(t=>orderedTecs.push({type:'tec',name:t}));
     });
@@ -372,7 +387,6 @@ function render(){
       return;
     }
     const tec=item.name;
-    {
     const tecE=entries.filter(e=>e.tecnico===tec);
     const isLibre=libres.includes(tec);
     const hasOverlap=overlapTecs.has(tec);
@@ -409,7 +423,7 @@ function render(){
       const isBAja=tipo==='baja';
       const isSpecial=isVac||isBAja;
       const isO=overlapSet.has(e)&&!isSpecial;
-      const color=isSpecial?null:getColor(e.obra);
+      const color=isSpecial?null:(e.obra?getColor(e.obra):null);
       if(!isSpecial&&e.obra) obrasVistas.add(e.obra);
 
       const bar=document.createElement('div');
@@ -419,7 +433,7 @@ function render(){
       else if(isO) barClass+=' overlap';
       bar.className=barClass;
       bar.style.left=(off*cellW)+'%';bar.style.width=(span*cellW)+'%';
-      if(!isSpecial&&!isO&&color)bar.style.background=color[0];
+      if(!isSpecial&&!isO&&color){bar.style.background=color[0];}else if(!isSpecial&&!isO&&!color){bar.style.background='#e0ddd8';}
 
       const label=document.createElement('span');label.className='g-bar-label';
       if(isVac){label.style.color='#a03030';}
@@ -446,7 +460,6 @@ function render(){
       track.appendChild(bar);
     });
     row.appendChild(track);gantt.appendChild(row);
-    }
   });
 
   const legend=document.getElementById('legend');legend.innerHTML='';

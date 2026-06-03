@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planificación Técnicos – Obra Nueva</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#f5f4f0;--surface:#fff;--border:#e2e0da;--border2:#cccab8;--text:#1a1917;--muted:#7a7870;--faint:#b8b6ad;--we-bg:#f0ede8;--today-bg:#fff8e6;--row-alt:#faf9f7;--shadow:0 1px 3px rgba(0,0,0,.07);--libre:#2a9d5c;--libre-bg:#eaf6f0;--overlap:#c94040;--overlap-bg:#fff0f0}
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+  /* HEADER */
+  .page-header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:100}
+  .page-title{font-size:14px;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+  .dot{width:7px;height:7px;border-radius:50%;background:#2a9d5c;flex-shrink:0}
+  .dot.loading{background:#e8c840;animation:pulse 1s infinite}
+  .dot.error{background:#c94040}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .header-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:5px 11px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;transition:background .15s,border-color .15s;white-space:nowrap}
+  .btn:hover{background:var(--bg);border-color:var(--text)}
+  .btn.active{background:var(--text);color:#fff;border-color:var(--text)}
+  .btn-today{background:#f0faf5;border-color:#a8dbbe;color:#1a6b42;font-weight:600}
+  .btn-today:hover{background:#ddf2ea}
+  .btn-refresh{display:flex;align-items:center;gap:4px;background:#f5f4f0;border-color:#ccc}
+  .btn-refresh svg{width:12px;height:12px}
+  .btn-pdf{display:flex;align-items:center;gap:4px;background:#f0f0ff;border-color:#b0b0e0;color:#3030a0}
+  .btn-pdf:hover{background:#e0e0ff}
+  .btn-pdf svg{width:12px;height:12px}
+  .nav-group{display:flex;align-items:center;gap:3px}
+  .nav-label{font-size:11px;font-weight:500;color:var(--muted);min-width:150px;text-align:center;font-family:'IBM Plex Mono',monospace}
+
+  /* TOOLBAR (below header) */
+  .toolbar{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .toolbar-label{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .tec-select{font-family:'Inter',sans-serif;font-size:12px;padding:5px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;min-width:180px}
+  .tec-select:focus{outline:none;border-color:var(--text)}
+  .alert-pills{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+  .pill{font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;white-space:nowrap}
+  .pill-libre{background:var(--libre-bg);color:var(--libre);border:1px solid #a8dbbe}
+  .pill-overlap{background:var(--overlap-bg);color:var(--overlap);border:1px solid #f5c0c0}
+
+  /* MAIN */
+  .main{padding:16px 24px 40px}
+  .status-bar{font-size:11px;color:var(--muted);margin-bottom:10px;font-family:'IBM Plex Mono',monospace;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .tag{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-size:11px}
+
+  /* GANTT */
+  .gantt-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:var(--shadow)}
+  .gantt-scroll{overflow-x:auto}
+  .gantt{min-width:600px}
+  .g-header{display:flex;border-bottom:1.5px solid var(--border2);background:#f8f7f4}
+  .g-name-col{min-width:155px;width:155px;flex-shrink:0;font-size:10px;font-weight:600;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;padding:10px 12px;border-right:1px solid var(--border2);display:flex;align-items:flex-end}
+  .g-weeks{flex:1;display:flex;flex-direction:column}
+  .g-week-labels{display:flex;border-bottom:1px solid var(--border)}
+  .g-week-lbl{font-size:10px;font-weight:600;letter-spacing:.05em;color:var(--muted);text-transform:uppercase;padding:5px 8px;border-right:1px solid var(--border);white-space:nowrap}
+  .g-week-lbl:last-child{border-right:none}
+  .g-day-labels{display:flex}
+  .g-day{flex:1;font-size:10px;color:var(--faint);text-align:center;padding:4px 1px 6px;border-right:1px solid var(--border);min-width:26px}
+  .g-day:last-child{border-right:none}
+  .g-day .dn{font-size:9px;display:block;color:var(--faint);margin-bottom:1px}
+  .g-day .dd{font-size:11px;font-weight:500;color:var(--muted)}
+  .g-day.weekend{background:var(--we-bg)}
+  .g-day.today{background:var(--today-bg)}
+  .g-day.today .dd{color:#b88000;font-weight:600}
+  .g-row{display:flex;border-bottom:1px solid var(--border);min-height:40px;align-items:stretch;transition:opacity .2s}
+  .g-row.dynamic{align-items:flex-start}
+  .g-row:last-child{border-bottom:none}
+  .g-row:nth-child(even) .g-name,.g-row:nth-child(even) .g-track{background:var(--row-alt)}
+  .g-row:hover .g-name,.g-row:hover .g-track{background:#f0ede8}
+  .g-row.dimmed{opacity:.2}
+  .g-name{min-width:155px;width:155px;flex-shrink:0;font-size:12px;font-weight:500;color:var(--text);padding:0 12px;display:flex;align-items:center;border-right:1px solid var(--border2);transition:background .1s;gap:5px}
+  .g-name .libre-dot{width:5px;height:5px;border-radius:50%;background:var(--libre);flex-shrink:0}
+  .g-track{flex:1;display:flex;position:relative;align-items:center;transition:background .1s}
+  .g-cell{flex:1;border-right:1px solid var(--border);height:100%;min-width:26px}
+  .g-cell:last-child{border-right:none}
+  .g-cell.weekend{background:var(--we-bg)}
+  .g-cell.today{background:var(--today-bg)}
+  .g-bar{position:absolute;top:4px;bottom:4px;border-radius:5px;display:flex;align-items:center;padding:0 8px;overflow:hidden;cursor:default}
+  .g-bar-label{font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .g-bar.overlap{background:var(--overlap-bg) !important;border:1.5px solid var(--overlap) !important}
+  .g-bar.overlap .g-bar-label{color:var(--overlap) !important}
+  .libre-bar{border:1.5px dashed #a8dbbe !important;background:transparent !important}
+  .vac-bar{background:repeating-linear-gradient(45deg,#fde8e8,#fde8e8 4px,#ffc0c0 4px,#ffc0c0 8px) !important;border:1.5px solid #e88080 !important}
+  .vac-bar .g-bar-label{color:#a03030 !important;font-style:italic}
+  .baja-bar{background:repeating-linear-gradient(45deg,#ffe8cc,#ffe8cc 4px,#ffb870 4px,#ffb870 8px) !important;border:1.5px solid #d07020 !important}
+  .baja-bar .g-bar-label{color:#7a3a00 !important;font-style:italic}
+  .libre-bar .g-bar-label{color:var(--libre) !important}
+
+  /* TOOLTIP */
+  .g-tooltip{display:none;position:fixed;background:#1a1917;color:#fff;font-size:12px;padding:8px 12px;border-radius:7px;white-space:nowrap;z-index:9999;pointer-events:none;line-height:1.6;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+  .g-tooltip .tt-title{font-weight:600;margin-bottom:1px}
+  .g-tooltip .tt-dates{font-family:'IBM Plex Mono',monospace;font-size:11px;opacity:.8}
+  .g-tooltip .tt-dur{font-size:11px;opacity:.65}
+  .g-tooltip .tt-warn{color:#ff9999;font-size:11px;margin-top:3px}
+  .g-tooltip .tt-tarea{font-size:11px;opacity:.85;margin-top:3px;border-top:1px solid rgba(255,255,255,.15);padding-top:3px}
+
+  .legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:3px 9px}
+  .leg-dot{width:8px;height:8px;border-radius:3px;flex-shrink:0}
+  .error-box{background:#fff5f5;border:1px solid #f5c0c0;border-radius:8px;padding:12px 16px;font-size:13px;color:#a03030;margin-bottom:12px;white-space:pre-wrap;line-height:1.6}
+  /* LOOKAHEAD */
+  .lk-grid{display:grid;gap:12px;margin-top:4px}
+  .lk-header{display:grid;gap:1px;background:var(--border2);border-radius:10px;overflow:hidden;box-shadow:var(--shadow)}
+  .lk-col-header{background:#f8f7f4;padding:10px 14px;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);text-align:center}
+  .lk-obra-header{background:#f8f7f4;padding:10px 14px;font-size:12px;font-weight:600;color:var(--text)}
+  .lk-cell{background:var(--surface);padding:10px 14px;min-height:80px;position:relative;transition:background .15s}
+  .lk-cell:hover{background:#faf9f6}
+  .lk-cell.vacio{background:#faf9f7}
+  .lk-estado{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+  .lk-estado.plazo{background:#eaf6f0;color:#1a6b42}
+  .lk-estado.retrasado{background:#fff8e0;color:#8a6000}
+  .lk-estado.bloqueado{background:#fff0f0;color:#a03030}
+  .lk-desc{font-size:12px;color:var(--text);line-height:1.5}
+  .lk-jefe{font-size:10px;color:var(--faint);margin-top:4px}
+  .lk-empty{font-size:11px;color:var(--faint);font-style:italic}
+  .lk-prev{display:none}
+  .lk-edited-badge{position:absolute;top:7px;right:7px;width:8px;height:8px;border-radius:50%;background:#e8c840;cursor:default;z-index:10}
+  .lk-semana-label{font-size:11px;font-weight:500;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+  .lk-jefe-section{margin-bottom:20px}
+  .lk-jefe-title{font-size:13px;font-weight:600;color:var(--text);padding:8px 0 10px;border-bottom:2px solid var(--border2);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .lk-jefe-dot{width:8px;height:8px;border-radius:50%;background:var(--text);flex-shrink:0}
+  .state-msg{text-align:center;padding:50px 20px;font-size:14px;color:var(--muted)}
+
+  /* PDF PRINT */
+  @media print{
+    *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    .page-header,.toolbar,.btn-pdf,.btn-refresh,.btn-today,.nav-group,.header-controls,.status-bar,.legend{display:none!important}
+    body{background:#fff}
+    .main{padding:0}
+    .gantt-card{box-shadow:none;border:1px solid #ccc}
+    .gantt-scroll{overflow:visible}
+    .gantt{min-width:unset;width:100%}
+    .g-bar-tooltip{display:none!important}
+    .print-header{display:block!important}
+    .g-bar{overflow:hidden}
+    .g-bar-label{font-size:10px}
+  }
+  .print-header{display:none;font-size:13px;font-weight:600;margin-bottom:10px;color:#333}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="page-title">
+    <span class="dot" id="status-dot"></span>
+    Planificación técnicos — Obra Nueva
+  </div>
+  <div class="header-controls">
+    <button class="btn btn-today" onclick="goToday()">Hoy</button>
+    <button class="btn" id="btn-view" onclick="toggleView()">Vista obras</button>
+    <button class="btn" id="btn-lookahead" onclick="toggleLookahead()">Lookahead</button>
+    <button class="btn" id="btn-we" onclick="toggleWeekends()">L–V</button>
+    <button class="btn" id="btn-grp" onclick="toggleGroup()">Equipo</button>
+    <div id="week-controls" style="display:flex;align-items:center;gap:6px">
+    <div class="nav-group">
+      <button class="btn" onclick="shiftWeeks(-1)">&#8592;</button>
+      <span class="nav-label" id="nav-label">—</span>
+      <button class="btn" onclick="shiftWeeks(1)">&#8594;</button>
+    </div>
+    <button class="btn" id="w2" onclick="setWeeks(2)">2 sem</button>
+    <button class="btn active" id="w3" onclick="setWeeks(3)">3 sem</button>
+    <button class="btn" id="w4" onclick="setWeeks(4)">4 sem</button>
+    </div>
+    <button class="btn btn-pdf" onclick="exportPDF()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      PDF
+    </button>
+    <button class="btn btn-refresh" onclick="loadData()" id="refresh-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.59"/></svg>
+      Actualizar
+    </button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div id="tec-ctrl" style="display:flex;align-items:center;gap:6px"><span class="toolbar-label">Técnico</span>
+  <select class="tec-select" id="tec-select" onchange="onSelectTec(this.value)">
+    <option value="">— Todos —</option>
+  </select></div>
+  <div id="obras-group-ctrl" style="display:none;align-items:center;gap:6px">
+    <span class="toolbar-label">Agrupar por</span>
+    <button class="btn" id="grp-none" onclick="setObrasGroup('none')" style="padding:4px 10px">Ninguno</button>
+    <button class="btn" id="grp-jefe" onclick="setObrasGroup('jefe')" style="padding:4px 10px">Jefe de obra</button>
+  </div>
+  <div class="alert-pills" id="alert-pills"></div>
+</div>
+
+<div id="tooltip" class="g-tooltip"></div>
+
+<div class="main">
+  <div id="error-box" class="error-box" style="display:none"></div>
+  <div class="status-bar"><span id="status-text">Cargando datos...</span></div>
+  <div class="print-header" id="print-header"></div>
+  <div class="gantt-card">
+    <div class="gantt-scroll">
+      <div class="gantt" id="gantt">
+        <div class="state-msg"><div style="font-size:26px;margin-bottom:10px">⏳</div>Cargando datos desde Google Sheets...</div>
+      </div>
+    </div>
+  </div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<script>
+const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbx_ihIj0no5v6ctW2CEcV18Sb52G66_IAYgMYlgopJoSziRROg1mYd9q7nzJzaeR329/exec';
+const PALETTE=[['#c8dff5','#1a4a7a'],['#b8ead8','#0d5c3a'],['#f5d4b8','#7a3810'],['#f0c8d8','#7a1a40'],['#f5e8b0','#7a5800'],['#d8d0f0','#3a2880'],['#f0c8c8','#7a1a1a'],['#c8e8d0','#1a5a30'],['#e8d8c0','#5a3a10'],['#d0e0f0','#1a3a6a'],['#f0e0c8','#6a3a10'],['#d8f0d8','#1a5a1a']];
+let colorMap={},colorIdx=0;
+function getColor(obra){if(obra.toLowerCase()==='libre')return null;if(!colorMap[obra]){colorMap[obra]=PALETTE[colorIdx%PALETTE.length];colorIdx++;}return colorMap[obra];}
+
+const DIAS=['dom','lun','mar','mié','jue','vie','sáb'];
+const MESES=['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+let entries=[],planificacion=[],viewStart=null,lookaheadStart=null,viewWeeks=3,selectedTec=null,showWeekends=false,groupByEquipo=false,viewMode='tecnicos',groupObrasBy='none';
+
+function parseDate(s){
+  if(!s)return null;s=String(s).trim();
+  const p=s.split(/[\/\-\.]/);if(p.length<3)return null;
+  let d,m,y;if(String(p[2]).length===4){[d,m,y]=p.map(Number);}else{[y,m,d]=p.map(Number);}
+  if(!d||!m||!y)return null;
+  const dt=new Date(y,m-1,d);dt.setHours(0,0,0,0);return dt;
+}
+function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
+function sameDay(a,b){return a.toDateString()===b.toDateString();}
+function daysBetween(a,b){return Math.round((b-a)/864e5);}
+function getMonday(d){const r=new Date(d);r.setHours(0,0,0,0);const wd=r.getDay();r.setDate(r.getDate()+(wd===0?-6:1-wd));return r;}
+function fmt(dt){return`${dt.getDate()}/${dt.getMonth()+1}/${dt.getFullYear()}`;}
+
+function shiftWeeks(n){
+  if(viewMode==='lookahead'){
+    lookaheadStart=addDays(lookaheadStart||getMonday(new Date()),n*7);
+  } else {
+    viewStart=addDays(viewStart,n*7);
+  }
+  render();
+}
+function toggleLookahead(){
+  viewMode = viewMode==='lookahead' ? 'tecnicos' : 'lookahead';
+  document.getElementById('btn-lookahead').classList.toggle('active', viewMode==='lookahead');
+  document.getElementById('btn-view').classList.toggle('active', false);
+  document.getElementById('btn-grp').style.display = viewMode==='tecnicos' ? '' : 'none';
+  document.getElementById('tec-ctrl').style.display = viewMode==='tecnicos' ? 'flex' : 'none';
+  document.getElementById('obras-group-ctrl').style.display = 'none';
+  // Show week controls always, update nav label
+  document.getElementById('week-controls').style.display = 'flex';
+  render();
+}
+function toggleView(){
+  viewMode = viewMode==='tecnicos' ? 'obras' : 'tecnicos';
+  const btn = document.getElementById('btn-view');
+  btn.textContent = viewMode==='tecnicos' ? 'Vista obras' : 'Vista técnicos';
+  btn.classList.toggle('active', viewMode==='obras');
+  document.getElementById('btn-grp').style.display = viewMode==='obras' ? 'none' : '';
+  document.getElementById('tec-ctrl').style.display = viewMode==='obras' ? 'none' : 'flex';
+  document.getElementById('obras-group-ctrl').style.display = viewMode==='obras' ? 'flex' : 'none';
+  render();
+}
+function setObrasGroup(val){
+  groupObrasBy=val;
+  ['grp-none','grp-jefe'].forEach(id=>{
+    document.getElementById(id).classList.toggle('active', id==='grp-'+val);
+  });
+  render();
+}
+function toggleGroup(){
+  groupByEquipo=!groupByEquipo;
+  document.getElementById('btn-grp').classList.toggle('active',groupByEquipo);
+  render();
+}
+function toggleWeekends(){
+  showWeekends=!showWeekends;
+  const btn=document.getElementById('btn-we');
+  btn.textContent=showWeekends?'L–D':'L–V';
+  btn.classList.toggle('active',showWeekends);
+  render();
+}
+function goToday(){viewStart=getMonday(new Date());lookaheadStart=getMonday(new Date());selectedTec=null;document.getElementById('tec-select').value='';render();}
+function setWeeks(n){viewWeeks=n;['w2','w3','w4'].forEach(id=>{document.getElementById(id).classList.toggle('active',parseInt(id[1])===n);});render();}
+function onSelectTec(v){selectedTec=v||null;render();}
+
+function getOverlaps(){
+  const overlaps=[];
+  const tecNames=[...new Set(entries.map(e=>e.tecnico))];
+  tecNames.forEach(tec=>{
+    const tecE=entries.filter(e=>e.tecnico===tec&&e.obra.toLowerCase()!=='libre');
+    for(let i=0;i<tecE.length;i++){
+      for(let j=i+1;j<tecE.length;j++){
+        const a=tecE[i],b=tecE[j];
+        const os=a.start>b.start?a.start:b.start;
+        const oe=a.end<b.end?a.end:b.end;
+        if(os<=oe) overlaps.push({tecnico:tec,obra1:a.obra,obra2:b.obra});
+      }
+    }
+  });
+  return overlaps;
+}
+
+function getTecLibreThisWeek(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const ws=getMonday(today),we=addDays(ws,6);
+  const tecNames=[...new Set(entries.map(e=>e.tecnico))];
+  return tecNames.filter(tec=>{
+    // Si el técnico tiene vacaciones o baja que cubren algún día esta semana, lo ignoramos
+    const ausente=entries.some(e=>
+      e.tecnico===tec&&
+      (e.tipo==='vacaciones'||e.tipo==='baja')&&
+      e.start<=we&&e.end>=ws
+    );
+    if(ausente) return false;
+    // Días laborables de esta semana
+    const laborables=[];
+    for(let d=new Date(ws);d<=we;d=addDays(d,1)){
+      const wd=d.getDay();
+      if(wd!==0&&wd!==6) laborables.push(new Date(d));
+    }
+    // Entradas de trabajo de este técnico
+    const trabajo=entries.filter(e=>e.tecnico===tec&&(e.tipo||'trabajo')==='trabajo');
+    // Si tiene al menos un día laborable sin cobertura → libre
+    return laborables.some(dia=>
+      !trabajo.some(e=>e.start<=dia&&e.end>=dia)
+    );
+  });
+}
+
+function exportPDF(){
+  const nav=document.getElementById('nav-label').textContent;
+  const tec=selectedTec?` · ${selectedTec}`:'';
+  document.getElementById('print-header').textContent=`Planificación Técnicos — Obra Nueva  |  ${nav}${tec}  |  Impreso: ${fmt(new Date())}`;
+  window.print();
+}
+
+function loadData(){
+  const dot=document.getElementById('status-dot'),txt=document.getElementById('status-text'),eb=document.getElementById('error-box'),rfb=document.getElementById('refresh-btn');
+  dot.className='dot loading';txt.textContent='Actualizando...';rfb.disabled=true;eb.style.display='none';
+  const cbName='cb_'+Date.now();
+  const script=document.createElement('script');
+  const timer=setTimeout(()=>{script.remove();delete window[cbName];showError('Tiempo de espera agotado.');rfb.disabled=false;},15000);
+  window[cbName]=function(data){
+    clearTimeout(timer);script.remove();delete window[cbName];
+    try{
+      // Support both old array format and new {asignaciones, planificacion} format
+      const asignaciones = Array.isArray(data) ? data : (data.asignaciones || []);
+      const planData = Array.isArray(data) ? [] : (data.planificacion || []);
+      if(!asignaciones.length)throw new Error('No hay datos en la hoja.');
+      colorMap={};colorIdx=0;entries=[];planificacion=[];
+      asignaciones.forEach(row=>{
+        const start=parseDate(row.inicio),end=parseDate(row.fin);
+        if(!row.key||!row.tecnico||!start||!end)return;
+        entries.push({key:row.key||'',tecnico:row.tecnico,equipo:row.equipo||'',obra:row.obra||'',jefeObra:row.jefeObra||'',start,end,tarea:row.tarea||'',tipo:(row.tipo||'trabajo').toLowerCase()});
+      });
+      planData.forEach(row=>{
+        const semana=parseDate(row.semana);
+        if(!row.obra||!semana)return;
+        planificacion.push({obra:row.obra,jefeObra:row.jefeObra||'',semana,descripcion:row.descripcion||'',estado:(row.estado||'En plazo')});
+      });
+      if(!entries.length)throw new Error('No se encontraron filas válidas.');
+      dot.className='dot';
+      const now=new Date();
+      txt.innerHTML=`<span class="tag">${entries.length} asignaciones</span> <span class="tag">${new Set(entries.map(e=>e.tecnico)).size} técnicos</span> <span class="tag">${new Set(entries.map(e=>e.obra)).size} obras</span> · ${now.toLocaleTimeString('es-ES')}`;
+      // Populate select
+      const sel=document.getElementById('tec-select');
+      const prev=sel.value;
+      sel.innerHTML='<option value="">— Todos —</option>';
+      [...new Set(entries.map(e=>e.tecnico))].forEach(t=>{
+        const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);
+      });
+      sel.value=prev;
+      selectedTec=prev||null;
+      render();
+    }catch(err){showError(err.message);}
+    rfb.disabled=false;
+  };
+  function showError(msg){dot.className='dot error';document.getElementById('status-text').textContent='Error al cargar';eb.style.display='block';eb.textContent='⚠ '+msg;}
+  script.src=APPS_SCRIPT_URL+'?callback='+cbName;
+  script.onerror=()=>{clearTimeout(timer);script.remove();delete window[cbName];showError('No se pudo conectar con Google Apps Script.');rfb.disabled=false;};
+  document.head.appendChild(script);
+}
+
+function render(){
+  if(!entries.length)return;
+  const today=new Date();today.setHours(0,0,0,0);
+  if(!viewStart)viewStart=getMonday(today);
+  const days=[];
+  for(let i=0;i<viewWeeks*7;i++){
+    const d=addDays(viewStart,i);
+    const wd=d.getDay();
+    if(showWeekends||!(wd===0||wd===6)) days.push(d);
+  }
+  const rS=days[0],rE=days[days.length-1];
+  const m1=MESES[rS.getMonth()+1],m2=MESES[rE.getMonth()+1];
+  document.getElementById('nav-label').textContent=m1===m2?`${rS.getDate()} – ${rE.getDate()} ${m1} ${rE.getFullYear()}`:`${rS.getDate()} ${m1} – ${rE.getDate()} ${m2} ${rE.getFullYear()}`;
+
+  const tecOrder=[...new Set(entries.map(e=>e.tecnico))].sort((a,b)=>a.localeCompare(b,'es'));
+  const libres=getTecLibreThisWeek();
+  const overlaps=getOverlaps();
+  const overlapTecs=new Set(overlaps.map(o=>o.tecnico));
+
+  // Alert pills
+  const pills=document.getElementById('alert-pills');pills.innerHTML='';
+  if(libres.length){
+    const p=document.createElement('span');p.className='pill pill-libre';
+    p.textContent=`● ${libres.length} libre${libres.length>1?'s':''} esta semana: ${libres.join(', ')}`;
+    pills.appendChild(p);
+  }
+  if(overlaps.length){
+    const p=document.createElement('span');p.className='pill pill-overlap';
+    p.textContent=`⚠ ${overlaps.length} solapamiento${overlaps.length>1?'s':''}`;
+    p.title=overlaps.map(o=>`${o.tecnico}: ${o.obra1} / ${o.obra2}`).join('\n');
+    pills.appendChild(p);
+  }
+
+  // Build ordered list: flat or grouped
+  let orderedTecs=[];
+  if(groupByEquipo){
+    const equipos=[...new Set(entries.map(e=>e.equipo||'Sin equipo'))].sort();
+    equipos.forEach(eq=>{
+      const tecs=[...new Set(entries.filter(e=>(e.equipo||'Sin equipo')===eq).map(e=>e.tecnico))];
+      if(!tecs.length) return;
+      orderedTecs.push({type:'group',label:eq});
+      tecs.forEach(t=>orderedTecs.push({type:'tec',name:t}));
+    });
+  } else {
+    tecOrder.forEach(t=>orderedTecs.push({type:'tec',name:t}));
+  }
+
+  const cellW=100/days.length;
+  const gantt=document.getElementById('gantt');gantt.innerHTML='';
+
+  // Header
+  const hdr=document.createElement('div');hdr.className='g-header';
+  const nc=document.createElement('div');nc.className='g-name-col';nc.textContent='Técnico';hdr.appendChild(nc);
+  const wks=document.createElement('div');wks.className='g-weeks';
+  const wkRow=document.createElement('div');wkRow.className='g-week-labels';
+  // Build week labels from actual days array (works with/without weekends)
+  const weekBuckets=[];
+  days.forEach(d=>{
+    const monday=getMonday(d);
+    const key=monday.toDateString();
+    let bucket=weekBuckets.find(b=>b.key===key);
+    if(!bucket){bucket={key,start:monday,count:0};weekBuckets.push(bucket);}
+    bucket.count++;
+  });
+  weekBuckets.forEach((b,i)=>{
+    const lbl=document.createElement('div');lbl.className='g-week-lbl';
+    lbl.style.flex=String(b.count);
+    lbl.textContent=`Sem ${i+1} · ${b.start.getDate()} ${MESES[b.start.getMonth()+1]}`;
+    wkRow.appendChild(lbl);
+  });
+  wks.appendChild(wkRow);
+  const dayRow=document.createElement('div');dayRow.className='g-day-labels';
+  days.forEach(d=>{
+    const wd=d.getDay();
+    const cls=['g-day',(wd===0||wd===6)?'weekend':'',sameDay(d,today)?'today':''].filter(Boolean).join(' ');
+    const div=document.createElement('div');div.className=cls;
+    div.innerHTML=`<span class="dn">${DIAS[wd]}</span><span class="dd">${d.getDate()}</span>`;
+    dayRow.appendChild(div);
+  });
+  wks.appendChild(dayRow);hdr.appendChild(wks);gantt.appendChild(hdr);
+
+  const obrasVistas=new Set();
+  if(viewMode==='tecnicos'){
+  // Group header style
+  const EQUIPO_COLORS=['#e8f4fd','#edf7ee','#fdf3e8','#f3edf7','#fdf0e8','#e8fdf4'];
+  let eqColorIdx=0;const eqColorMap={};
+  orderedTecs.forEach(item=>{
+    if(item.type==='group'){
+      if(!eqColorMap[item.label]){eqColorMap[item.label]=EQUIPO_COLORS[eqColorIdx%EQUIPO_COLORS.length];eqColorIdx++;}
+      const grpRow=document.createElement('div');
+      grpRow.style.cssText=`display:flex;align-items:center;background:${eqColorMap[item.label]};border-bottom:1px solid var(--border2);padding:5px 12px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)`;
+      grpRow.textContent=item.label;
+      gantt.appendChild(grpRow);
+      return;
+    }
+    const tec=item.name;
+    const tecE=entries.filter(e=>e.tecnico===tec);
+    const isLibre=libres.includes(tec);
+    const hasOverlap=overlapTecs.has(tec);
+    const isDimmed=selectedTec&&selectedTec!==tec;
+
+    const row=document.createElement('div');row.className='g-row'+(isDimmed?' dimmed':'');
+    const nameDiv=document.createElement('div');nameDiv.className='g-name';
+    if(isLibre){nameDiv.innerHTML=`${tec}<span class="libre-dot"></span>`;}
+    else{nameDiv.textContent=tec;}
+    row.appendChild(nameDiv);
+
+    const track=document.createElement('div');track.className='g-track';
+    days.forEach(d=>{
+      const wd=d.getDay();
+      const cell=document.createElement('div');
+      cell.className=['g-cell',(wd===0||wd===6)?'weekend':'',sameDay(d,today)?'today':''].filter(Boolean).join(' ');
+      track.appendChild(cell);
+    });
+
+    // Overlap entries for this tec
+    const overlapSet=new Set();
+    overlaps.filter(o=>o.tecnico===tec).forEach(o=>{
+      tecE.forEach(e=>{if(e.obra===o.obra1||e.obra===o.obra2)overlapSet.add(e);});
+    });
+
+    tecE.forEach(e=>{
+      const bs=e.start<rS?rS:e.start;
+      const be=e.end>rE?rE:e.end;
+      if(be<rS||bs>rE)return;
+      // Find actual indices in the days array (handles hidden weekends correctly)
+      const offIdx=days.findIndex(d=>sameDay(d,bs));
+      const endIdx=days.reduce((acc,d,i)=>d<=be?i:acc,-1);
+      if(offIdx<0||endIdx<0)return;
+      const off=offIdx,span=endIdx-offIdx+1;
+      if(span<=0)return;
+      const tipo=e.tipo||'trabajo';
+      const isVac=tipo==='vacaciones';
+      const isBAja=tipo==='baja';
+      const isSpecial=isVac||isBAja;
+      const isO=overlapSet.has(e)&&!isSpecial;
+      const color=isSpecial?null:(e.obra?getColor(e.obra):null);
+      if(!isSpecial&&e.obra) obrasVistas.add(e.obra);
+
+      const bar=document.createElement('div');
+      let barClass='g-bar';
+      if(isVac) barClass+=' vac-bar';
+      else if(isBAja) barClass+=' baja-bar';
+      else if(isO) barClass+=' overlap';
+      bar.className=barClass;
+      bar.style.left=(off*cellW)+'%';bar.style.width=(span*cellW)+'%';
+      if(!isSpecial&&!isO&&color){bar.style.background=color[0];}else if(!isSpecial&&!isO&&!color){bar.style.background='#e0ddd8';}
+
+      const label=document.createElement('span');label.className='g-bar-label';
+      if(isVac){label.style.color='#a03030';}
+      else if(isBAja){label.style.color='#7a3a00';}
+      else if(isO){label.style.color='var(--overlap)';}
+      else if(color){label.style.color=color[1];}
+      label.textContent=isVac?'Vacaciones':isBAja?'Baja':(e.obra||'Sin obra');
+      bar.appendChild(label);
+
+      const dur=daysBetween(e.start,e.end)+1;
+      bar.addEventListener('mouseenter',ev=>{
+        const tt=document.getElementById('tooltip');
+        const tipoLabel=isVac?'🏖 Vacaciones':isBAja?'🤒 Baja':'';
+        const obraLabel=isSpecial?tipoLabel:e.obra;
+        let h=`<div class="tt-title">${tec} · ${obraLabel}</div>`;
+        h+=`<div class="tt-dates">${fmt(e.start)} → ${fmt(e.end)}</div>`;
+        h+=`<div class="tt-dur">${dur} día${dur!==1?'s':''}</div>`;
+        if(e.tarea)h+=`<div class="tt-tarea">📋 ${e.tarea}</div>`;
+        if(isO)h+=`<div class="tt-warn">⚠ Solapamiento detectado</div>`;
+        tt.innerHTML=h;tt.style.display='block';posTip(ev);
+      });
+      bar.addEventListener('mousemove',posTip);
+      bar.addEventListener('mouseleave',()=>{document.getElementById('tooltip').style.display='none';});
+      track.appendChild(bar);
+    });
+    row.appendChild(track);gantt.appendChild(row);
+  });
+
+  } // end viewMode===tecnicos
+  // ── OBRAS VIEW ─────────────────────────────────────────────────────
+  if(viewMode==='obras'){
+    const obraOrder=[...new Set(entries.filter(e=>(e.tipo||'trabajo')==='trabajo'&&e.obra).map(e=>e.obra))].sort((a,b)=>a.localeCompare(b,'es'));
+
+    // Build list with optional group headers
+    let obraItems=[];
+    if(groupObrasBy==='jefe'){
+      // Get jefe for each obra (take first match)
+      const obraJefeMap={};
+      entries.filter(e=>(e.tipo||'trabajo')==='trabajo'&&e.obra).forEach(e=>{
+        if(!obraJefeMap[e.obra]) obraJefeMap[e.obra]=e.jefeObra||'Sin asignar';
+      });
+      const jefes=[...new Set(Object.values(obraJefeMap))].sort((a,b)=>a.localeCompare(b,'es'));
+      jefes.forEach(jefe=>{
+        obraItems.push({type:'group',label:jefe});
+        obraOrder.filter(o=>obraJefeMap[o]===jefe).forEach(o=>obraItems.push({type:'obra',obra:o}));
+      });
+    } else {
+      obraOrder.forEach(o=>obraItems.push({type:'obra',obra:o}));
+    }
+
+    const JEFE_COLORS=['#e8f4fd','#edf7ee','#fdf3e8','#f3edf7','#fdf0e8','#e8fdf4'];
+    let jefeColorIdx=0;const jefeColorMap={};
+
+    obraItems.forEach(item=>{
+      if(item.type==='group'){
+        if(!jefeColorMap[item.label]){jefeColorMap[item.label]=JEFE_COLORS[jefeColorIdx%JEFE_COLORS.length];jefeColorIdx++;}
+        const grpRow=document.createElement('div');
+        grpRow.style.cssText=`display:flex;align-items:center;background:${jefeColorMap[item.label]};border-bottom:1px solid var(--border2);padding:5px 12px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)`;
+        grpRow.textContent='Jefe de obra: '+item.label;
+        gantt.appendChild(grpRow);
+        return;
+      }
+      const obra=item.obra;
+      {
+      const obraEntries=entries.filter(e=>e.obra===obra&&(e.tipo||'trabajo')==='trabajo');
+      const row=document.createElement('div');row.className='g-row';
+      const nameDiv=document.createElement('div');nameDiv.className='g-name';
+      nameDiv.style.fontWeight='600';
+      nameDiv.textContent=obra;
+      row.appendChild(nameDiv);
+      const track=document.createElement('div');track.className='g-track';
+      days.forEach(d=>{
+        const wd=d.getDay();
+        const cell=document.createElement('div');
+        cell.className=['g-cell',(wd===0||wd===6)?'weekend':'',sameDay(d,today)?'today':''].filter(Boolean).join(' ');
+        track.appendChild(cell);
+      });
+      // Calculate max tecnicos per day for this obra (for row height)
+      const maxTecs=Math.max(0,...days.map(d=>
+        obraEntries.filter(e=>e.start<=d&&e.end>=d).length
+      ));
+      const rowH=Math.max(36, maxTecs*22+10);
+      row.style.minHeight=rowH+'px';
+      track.style.minHeight=rowH+'px';
+
+      // For each day, stack tecnicos vertically (di is already the correct index)
+      days.forEach((d,di)=>{
+        const tecsDia=obraEntries.filter(e=>e.start<=d&&e.end>=d).map(e=>e.tecnico);
+        if(!tecsDia.length) return;
+        const color=getColor(obra);
+        // Stack each tecnico as its own mini-bar
+        tecsDia.forEach((tec,ti)=>{
+          const bar=document.createElement('div');
+          bar.style.cssText=`position:absolute;left:${di*cellW+0.15}%;width:${cellW-0.3}%;top:${5+ti*22}px;height:19px;border-radius:4px;display:flex;align-items:center;padding:0 6px;overflow:hidden;cursor:default`;
+          if(color) bar.style.background=color[0];
+          const label=document.createElement('span');
+          label.style.cssText=`font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${color?color[1]:'#333'}`;
+          label.textContent=tec;
+          bar.appendChild(label);
+          bar.addEventListener('mouseenter',ev=>{
+            const tt=document.getElementById('tooltip');
+            let h=`<div class="tt-title">${obra} · ${fmt(d)}</div>`;
+            h+=`<div class="tt-dates">${tecsDia.length} técnico${tecsDia.length!==1?'s':''}</div>`;
+            tecsDia.forEach(t=>{ h+=`<div class="tt-dur">· ${t}</div>`; });
+            tt.innerHTML=h;tt.style.display='block';posTip(ev);
+          });
+          bar.addEventListener('mousemove',posTip);
+          bar.addEventListener('mouseleave',()=>{document.getElementById('tooltip').style.display='none';});
+          track.appendChild(bar);
+        });
+      });
+      row.appendChild(track);
+      gantt.appendChild(row);
+      }
+    });
+    // Skip normal legend for obras view
+    document.getElementById('legend').innerHTML='';
+    return;
+  }
+  // ── END OBRAS VIEW ──────────────────────────────────────────────────
+
+  // ── LOOKAHEAD VIEW ─────────────────────────────────────────────────
+  if(viewMode==='lookahead'){
+    document.getElementById('legend').innerHTML='';
+    const gantt=document.getElementById('gantt');gantt.innerHTML='';
+    const today=new Date();today.setHours(0,0,0,0);
+    if(!lookaheadStart) lookaheadStart=getMonday(today);
+    const ws=lookaheadStart;
+    const semanas=[ws, addDays(ws,7), addDays(ws,14)];
+    const fmtSemana=d=>`${d.getDate()} ${MESES[d.getMonth()+1]}`;
+    // Update nav label
+    const lkEnd=addDays(ws,20);
+    const m1=MESES[ws.getMonth()+1],m2=MESES[lkEnd.getMonth()+1];
+    document.getElementById('nav-label').textContent=m1===m2?`${ws.getDate()} – ${lkEnd.getDate()} ${m1} ${lkEnd.getFullYear()}`:`${ws.getDate()} ${m1} – ${lkEnd.getDate()} ${m2} ${lkEnd.getFullYear()}`;
+
+    // Get all obras from planificacion + entries
+    const todasObras=[...new Set([
+      ...planificacion.map(p=>p.obra),
+      ...entries.filter(e=>(e.tipo||'trabajo')==='trabajo'&&e.obra).map(e=>e.obra)
+    ])].sort((a,b)=>a.localeCompare(b,'es'));
+
+    // Get jefe per obra
+    const obraJefeMap={};
+    entries.filter(e=>e.obra&&e.jefeObra).forEach(e=>{obraJefeMap[e.obra]=e.jefeObra;});
+    planificacion.filter(p=>p.obra&&p.jefeObra).forEach(p=>{obraJefeMap[p.obra]=p.jefeObra;});
+
+    // Group obras by jefe
+    const jefes=[...new Set(Object.values(obraJefeMap))].sort((a,b)=>a.localeCompare(b,'es'));
+    const sinJefe=todasObras.filter(o=>!obraJefeMap[o]);
+
+    const ESTADO_CLASS={'En plazo':'plazo','Retrasado':'retrasado','Bloqueado':'bloqueado'};
+
+    function renderLookaheadSection(obras, container){
+      // Header row
+      const headerGrid=document.createElement('div');
+      headerGrid.style.cssText=`display:grid;grid-template-columns:180px repeat(3,1fr);gap:1px;background:var(--border2);border-radius:10px 10px 0 0;overflow:hidden`;
+      const obraHdr=document.createElement('div');obraHdr.className='lk-obra-header';obraHdr.textContent='Obra';
+      headerGrid.appendChild(obraHdr);
+      semanas.forEach((s,i)=>{
+        const h=document.createElement('div');h.className='lk-col-header';
+        h.innerHTML=`<span class="lk-semana-label">Sem ${i+1} · ${fmtSemana(s)}</span>`;
+        headerGrid.appendChild(h);
+      });
+      container.appendChild(headerGrid);
+
+      // Rows
+      const bodyGrid=document.createElement('div');
+      bodyGrid.style.cssText=`display:grid;grid-template-columns:180px repeat(3,1fr);gap:1px;background:var(--border2);border-radius:0 0 10px 10px;overflow:hidden;margin-bottom:2px`;
+      obras.forEach(obra=>{
+        // Obra name cell
+        const obraCell=document.createElement('div');
+        obraCell.className='lk-cell';
+        obraCell.style.cssText='background:#f8f7f4;display:flex;align-items:center;padding:10px 14px';
+        const color=getColor(obra);
+        const dot=document.createElement('span');
+        dot.style.cssText=`width:8px;height:8px;border-radius:50%;background:${color?color[0]:'#ccc'};border:1px solid ${color?color[1]+'40':'#aaa'};flex-shrink:0;margin-right:8px`;
+        obraCell.appendChild(dot);
+        const obraName=document.createElement('span');
+        obraName.style.cssText='font-size:12px;font-weight:600;color:var(--text)';
+        obraName.textContent=obra;
+        obraCell.appendChild(obraName);
+        bodyGrid.appendChild(obraCell);
+
+        // Semana cells
+        semanas.forEach(s=>{
+          const cell=document.createElement('div');
+          const entry=planificacion.find(p=>p.obra===obra&&sameDay(p.semana,s));
+          if(entry){
+            cell.className='lk-cell';
+            const estadoClass=ESTADO_CLASS[entry.estado]||'plazo';
+            let html=`<span class="lk-estado ${estadoClass}">${entry.estado}</span>`;
+            if(entry.descripcion) html+=`<div class="lk-desc">${entry.descripcion}</div>`;
+            cell.innerHTML=html;
+            cell.style.position='relative';
+            if(entry.descripcionAnterior){
+              const badge=document.createElement('div');
+              badge.className='lk-edited-badge';
+              const tipText=(entry.actualizado?'Editado: '+entry.actualizado+'
+':'Editado
+')+'Anterior: '+entry.descripcionAnterior;
+              badge.addEventListener('mouseenter',ev=>{
+                const tt=document.getElementById('tooltip');
+                tt.innerHTML='<div class="tt-title">Historial de edición</div><div class="tt-dates" style="white-space:pre-wrap;max-width:240px">'+tipText+'</div>';
+                tt.style.display='block';
+                posTip(ev);
+              });
+              badge.addEventListener('mousemove',posTip);
+              badge.addEventListener('mouseleave',()=>{document.getElementById('tooltip').style.display='none';});
+              cell.appendChild(badge);
+            }
+          } else {
+            cell.className='lk-cell vacio';
+            cell.innerHTML='<span class="lk-empty">Sin planificar</span>';
+          }
+          bodyGrid.appendChild(cell);
+        });
+      });
+      container.appendChild(bodyGrid);
+    }
+
+    if(jefes.length){
+      const JEFE_COLORS=['#1a4a7a','#0d5c3a','#7a3810','#7a1a40','#3a2880','#7a1a1a'];
+      jefes.forEach((jefe,ji)=>{
+        const obras=todasObras.filter(o=>obraJefeMap[o]===jefe);
+        if(!obras.length)return;
+        const section=document.createElement('div');section.className='lk-jefe-section';
+        const title=document.createElement('div');title.className='lk-jefe-title';
+        const dot=document.createElement('span');dot.className='lk-jefe-dot';
+        dot.style.background=JEFE_COLORS[ji%JEFE_COLORS.length];
+        title.appendChild(dot);
+        title.appendChild(document.createTextNode(jefe));
+        section.appendChild(title);
+        renderLookaheadSection(obras, section);
+        gantt.appendChild(section);
+      });
+    }
+    if(sinJefe.length){
+      const section=document.createElement('div');section.className='lk-jefe-section';
+      const title=document.createElement('div');title.className='lk-jefe-title';
+      title.textContent='Sin jefe asignado';
+      section.appendChild(title);
+      renderLookaheadSection(sinJefe, section);
+      gantt.appendChild(section);
+    }
+    return;
+  }
+  // ── END LOOKAHEAD VIEW ──────────────────────────────────────────────
+
+  if(viewMode==='tecnicos'){
+  const legend=document.getElementById('legend');legend.innerHTML='';
+  [...obrasVistas].forEach(obra=>{
+    const item=document.createElement('div');item.className='leg';
+    if(obra.toLowerCase()==='libre'){
+      item.innerHTML=`<span class="leg-dot" style="background:transparent;border:1.5px dashed var(--libre)"></span>${obra}`;
+    }else{
+      const c=getColor(obra);if(!c)return;
+      item.innerHTML=`<span class="leg-dot" style="background:${c[0]};border:1px solid ${c[1]}40"></span>${obra}`;
+    }
+    legend.appendChild(item);
+  });
+  } // end legend tecnicos
+}
+
+function posTip(ev){
+  const tt=document.getElementById('tooltip');
+  const x=ev.clientX+14,y=ev.clientY-10;
+  tt.style.left=(x+tt.offsetWidth>window.innerWidth?x-tt.offsetWidth-20:x)+'px';
+  tt.style.top=(y+tt.offsetHeight>window.innerHeight?y-tt.offsetHeight:y)+'px';
+}
+
+viewStart=getMonday(new Date());
+loadData();
+</script>
+</body>
+</html>
